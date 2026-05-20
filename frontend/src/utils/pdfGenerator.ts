@@ -2,7 +2,7 @@ import { jsPDF } from 'jspdf';
 import { format } from 'date-fns';
 import type { Candidate, VerificationLog } from '../types/candidate';
 
-export const generatePDFReport = (candidate: Candidate, userName: string = 'Admin') => {
+export const generatePDFReport = (candidate: Candidate, userName: string = 'Admin', returnBlob: boolean = false) => {
   const doc = new jsPDF();
   
   const textDark = '#111827';
@@ -44,6 +44,8 @@ export const generatePDFReport = (candidate: Candidate, userName: string = 'Admi
     { label: 'Full Name:', value: candidate.fullName },
     { label: 'Email:', value: candidate.email },
     { label: 'Phone:', value: candidate.phone },
+    { label: 'Date of Birth:', value: format(new Date(candidate.dob), 'dd MMM yyyy') },
+    { label: 'Address:', value: candidate.address },
   ];
 
   details.forEach(item => {
@@ -66,8 +68,7 @@ export const generatePDFReport = (candidate: Candidate, userName: string = 'Admi
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(12);
 
-  // We assume Aadhaar and PAN are verified if the overall status is verified, 
-  // but let's check logs if available
+  // Check verification logs
   const hasAadhaarLog = candidate.verificationLogs?.find((log: VerificationLog) => log.verificationType === 'AADHAAR');
   const hasPanLog = candidate.verificationLogs?.find((log: VerificationLog) => log.verificationType === 'PAN');
   
@@ -75,8 +76,16 @@ export const generatePDFReport = (candidate: Candidate, userName: string = 'Admi
   const panStatus = hasPanLog?.verificationStatus === 'verified' ? 'VERIFIED' : 'FAILED';
 
   const checks = [
-    { label: 'Aadhaar Verification:', status: candidate.status === 'VERIFIED' ? 'VERIFIED' : aadhaarStatus },
-    { label: 'PAN Verification:', status: candidate.status === 'VERIFIED' ? 'VERIFIED' : panStatus },
+    { 
+      label: 'Aadhaar Verification:', 
+      status: aadhaarStatus,
+      details: hasAadhaarLog ? `Verified on ${format(new Date(hasAadhaarLog.verifiedAt), 'dd MMM yyyy')}` : 'Not verified'
+    },
+    { 
+      label: 'PAN Verification:', 
+      status: panStatus,
+      details: hasPanLog ? `Verified on ${format(new Date(hasPanLog.verifiedAt), 'dd MMM yyyy')}` : 'Not verified'
+    },
   ];
 
   checks.forEach(check => {
@@ -85,13 +94,20 @@ export const generatePDFReport = (candidate: Candidate, userName: string = 'Admi
     
     if (check.status === 'VERIFIED') {
       doc.setTextColor(22, 163, 74); // green-600
+      doc.setFont('helvetica', 'bold');
+      doc.text('✓ VERIFIED', 65, y);
     } else {
       doc.setTextColor(220, 38, 38); // red-600
+      doc.setFont('helvetica', 'bold');
+      doc.text('✗ FAILED', 65, y);
     }
-    doc.setFont('helvetica', 'bold');
-    doc.text(`${check.status} (Passed)`, 65, y);
+    
     doc.setFont('helvetica', 'normal');
-    y += 8;
+    doc.setFontSize(10);
+    doc.setTextColor(textGray);
+    doc.text(check.details, 65, y + 4);
+    doc.setFontSize(12);
+    y += 12;
   });
 
   y += 15;
@@ -104,12 +120,14 @@ export const generatePDFReport = (candidate: Candidate, userName: string = 'Admi
   
   if (candidate.status === 'VERIFIED') {
     doc.setTextColor(22, 163, 74);
+    doc.text('✓ VERIFIED', 55, y);
   } else if (candidate.status === 'PARTIAL') {
     doc.setTextColor(234, 88, 12);
+    doc.text('⚠ PARTIAL', 55, y);
   } else {
     doc.setTextColor(220, 38, 38);
+    doc.text('✗ FAILED', 55, y);
   }
-  doc.text(candidate.status, 55, y);
   
   y += 25;
 
@@ -122,8 +140,13 @@ export const generatePDFReport = (candidate: Candidate, userName: string = 'Admi
   
   doc.text(`Generated On: ${format(new Date(), 'dd MMM yyyy, HH:mm')}`, 15, y + 2);
   doc.text(`Verified By: ${userName}`, 15, y + 8);
+  doc.text(`Report ID: ${candidate.id.substring(0, 8).toUpperCase()}`, 15, y + 14);
 
-  // Save PDF
-  const filename = `BGV_Report_${candidate.fullName.replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd')}.pdf`;
-  doc.save(filename);
+  // Return blob for preview or download
+  if (returnBlob) {
+    return doc.output('blob');
+  } else {
+    const filename = `BGV_Report_${candidate.fullName.replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd')}.pdf`;
+    doc.save(filename);
+  }
 };
