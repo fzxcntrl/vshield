@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { format } from 'date-fns';
 import { Plus, Search, Loader2, Trash2 } from 'lucide-react';
-import { generatePDFReport } from '../utils/pdfGenerator';
 import { useToastStore } from '../store/toastStore';
 import CandidateFormModal from '../components/CandidateFormModal';
+import PDFPreviewModal from '../components/PDFPreviewModal';
 import type { Candidate, CandidateStatus } from '../types/candidate';
 
 export default function Candidates() {
@@ -17,6 +17,8 @@ export default function Candidates() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
+  const [showPDFPreview, setShowPDFPreview] = useState(false);
+  const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const addToast = useToastStore((state) => state.addToast);
   const navigate = useNavigate();
 
@@ -85,11 +87,8 @@ export default function Candidates() {
 
   const handleViewReport = (candidate: Candidate, e: React.MouseEvent) => {
     e.stopPropagation();
-    try {
-      generatePDFReport(candidate, 'Admin');
-    } catch {
-      addToast('Failed to generate report', 'error');
-    }
+    setSelectedCandidate(candidate);
+    setShowPDFPreview(true);
   };
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
@@ -139,7 +138,7 @@ export default function Candidates() {
             <select
               value={statusFilter}
               onChange={(e) => {
-                setStatusFilter(e.target.value);
+                setStatusFilter(e.target.value as 'All' | CandidateStatus);
                 setCurrentPage(1);
               }}
               className="w-full sm:w-48 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm text-gray-700 bg-white"
@@ -228,7 +227,7 @@ export default function Candidates() {
                         <Trash2 size={16} />
                       </button>
                       <button 
-                        onClick={(e) => { e.stopPropagation(); navigate(`/candidates/${candidate.id}`); }}
+                        onClick={(e) => { e.stopPropagation(); navigate(`/dashboard/candidates/${candidate.id}`); }}
                         className="text-gray-500 hover:text-gray-900 text-sm font-medium transition-colors"
                       >
                         Details
@@ -287,7 +286,7 @@ export default function Candidates() {
             </div>
           ) : (
             paginatedCandidates.map((candidate) => (
-              <div key={candidate.id} className="p-4 hover:bg-gray-50/80 transition-colors cursor-pointer" onClick={() => navigate(`/candidates/${candidate.id}`)}>
+              <div key={candidate.id} className="p-4 hover:bg-gray-50/80 transition-colors cursor-pointer" onClick={() => navigate(`/dashboard/candidates/${candidate.id}`)}>
                 <div className="flex justify-between items-start mb-2">
                   <div className="font-medium text-gray-900">{candidate.fullName}</div>
                   <span className={`px-2.5 py-0.5 border rounded-full text-[10px] font-semibold ${getStatusColor(candidate.status)}`}>
@@ -307,7 +306,7 @@ export default function Candidates() {
                     <Trash2 size={16} />
                   </button>
                   <button 
-                    onClick={(e) => { e.stopPropagation(); navigate(`/candidates/${candidate.id}`); }}
+                    onClick={(e) => { e.stopPropagation(); navigate(`/dashboard/candidates/${candidate.id}`); }}
                     className="text-gray-500 hover:text-gray-900 text-sm font-medium transition-colors px-3 py-1.5"
                   >
                     Details
@@ -369,6 +368,18 @@ export default function Candidates() {
           addToast('Candidate added successfully', 'success');
         }}
       />
+
+      {selectedCandidate && (
+        <PDFPreviewModal
+          isOpen={showPDFPreview}
+          onClose={() => {
+            setShowPDFPreview(false);
+            setSelectedCandidate(null);
+          }}
+          candidate={selectedCandidate}
+          userName="Admin"
+        />
+      )}
 
       {verifyingId && (
         <div className="fixed inset-0 bg-white/50 backdrop-blur-sm z-[100] flex flex-col items-center justify-center pointer-events-auto animate-fade-in">

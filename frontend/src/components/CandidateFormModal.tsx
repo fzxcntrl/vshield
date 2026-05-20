@@ -81,8 +81,10 @@ export default function CandidateFormModal({ isOpen, onClose, onSuccess, candida
         await api.post('/candidates', payload);
       }
       onSuccess();
-    } catch {
-      alert(`Failed to ${candidate ? 'update' : 'add'} candidate`);
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.error || `Failed to ${candidate ? 'update' : 'add'} candidate`;
+      console.error('Candidate form error:', errorMessage);
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }
