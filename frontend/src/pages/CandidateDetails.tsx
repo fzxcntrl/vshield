@@ -2,15 +2,20 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { format } from 'date-fns';
-import { ArrowLeft, CheckCircle2, XCircle, AlertCircle, Loader2, Download, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, XCircle, AlertCircle, Loader2, Download, ShieldCheck, Trash2, Pencil } from 'lucide-react';
+import { generatePDFReport } from '../utils/pdfGenerator';
+import { useToastStore } from '../store/toastStore';
+import CandidateFormModal from '../components/CandidateFormModal';
+import type { Candidate, CandidateStatus, VerificationLog } from '../types/candidate';
 
 export default function CandidateDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [candidate, setCandidate] = useState<any>(null);
+  const [candidate, setCandidate] = useState<Candidate | null>(null);
   const [loading, setLoading] = useState(true);
   const [verifying, setVerifying] = useState(false);
-  const [downloading, setDownloading] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const addToast = useToastStore((state) => state.addToast);
 
   const fetchCandidate = async () => {
     try {
@@ -24,7 +29,9 @@ export default function CandidateDetails() {
   };
 
   useEffect(() => {
-    fetchCandidate();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchCandidate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const handleVerify = async () => {
@@ -32,28 +39,29 @@ export default function CandidateDetails() {
     try {
       await api.post(`/candidates/${id}/verify`);
       await fetchCandidate();
-    } catch (error) {
+    } catch {
       alert('Verification failed');
     } finally {
       setVerifying(false);
     }
   };
 
-  const handleDownloadReport = async () => {
-    setDownloading(true);
+  const handleDownloadReport = () => {
     try {
-      const res = await api.get(`/candidates/${id}/report`, { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([res.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `report-${id}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode?.removeChild(link);
-    } catch (error) {
+      generatePDFReport(candidate, 'Admin');
+    } catch {
       alert('Failed to download report');
-    } finally {
-      setDownloading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm('Are you sure you want to delete this candidate? This action cannot be undone.')) return;
+    try {
+      await api.delete(`/candidates/${id}`);
+      addToast('Candidate deleted successfully', 'success');
+      navigate('/candidates');
+    } catch {
+      addToast('Failed to delete candidate', 'error');
     }
   };
 
@@ -66,15 +74,21 @@ export default function CandidateDetails() {
   }
 
   const StatusIcon = candidate.status === 'VERIFIED' ? CheckCircle2 : candidate.status === 'FAILED' ? XCircle : AlertCircle;
-  const statusColor = candidate.status === 'VERIFIED' ? 'text-green-600' : candidate.status === 'FAILED' ? 'text-red-600' : 'text-yellow-600';
+  const statusColorByStatus: Record<CandidateStatus, string> = {
+    VERIFIED: 'text-green-600 border-green-200 bg-green-50',
+    FAILED: 'text-red-600 border-red-200 bg-red-50',
+    PARTIAL: 'text-orange-600 border-orange-200 bg-orange-50',
+    PENDING: 'text-yellow-600 border-yellow-200 bg-yellow-50',
+  };
+  const statusColor = statusColorByStatus[candidate.status];
 
   return (
     <div className="max-w-4xl mx-auto">
       <button 
-        onClick={() => navigate(-1)}
+        onClick={() => navigate('/candidates')}
         className="flex items-center gap-2 text-gray-500 hover:text-gray-900 mb-6 transition-colors text-sm font-medium"
       >
-        <ArrowLeft size={16} /> Back to Dashboard
+        <ArrowLeft size={16} /> Back to Candidates
       </button>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6">
@@ -84,7 +98,7 @@ export default function CandidateDetails() {
             <p className="text-gray-500 text-sm mt-1">{candidate.email} • {candidate.phone}</p>
           </div>
           <div className="flex flex-col items-end gap-3">
-            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold border ${statusColor} bg-opacity-10`}>
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold border ${statusColor}`}>
               <StatusIcon size={18} />
               {candidate.status}
             </div>
@@ -100,13 +114,26 @@ export default function CandidateDetails() {
               {(candidate.status === 'VERIFIED' || candidate.status === 'FAILED') && (
                 <button 
                   onClick={handleDownloadReport}
-                  disabled={downloading}
-                  className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm font-medium shadow-sm"
+                  className="bg-primary hover:bg-blue-800 disabled:bg-blue-300 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm font-medium shadow-sm"
                 >
-                  {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download size={18} />}
-                  Report
+                  <Download size={18} />
+                  Generate Report
                 </button>
               )}
+              <button 
+                onClick={() => setIsEditModalOpen(true)}
+                className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm font-medium shadow-sm"
+              >
+                <Pencil size={18} />
+                Edit
+              </button>
+              <button 
+                onClick={handleDelete}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm font-medium shadow-sm"
+              >
+                <Trash2 size={18} />
+                Delete
+              </button>
             </div>
           </div>
         </div>
@@ -131,7 +158,7 @@ export default function CandidateDetails() {
               <div>
                 <dt className="text-xs text-gray-500 font-medium">Aadhaar Number</dt>
                 <dd className="text-sm font-mono font-medium text-gray-900 mt-1 bg-gray-50 px-2 py-1 rounded inline-block">
-                  {candidate.aadhaarNumber.replace(/(\d{4})/g, '$1 ').trim()}
+                  XXXX-XXXX-{candidate.aadhaarNumber?.slice(-4) || 'XXXX'}
                 </dd>
               </div>
               <div>
@@ -152,7 +179,7 @@ export default function CandidateDetails() {
           </div>
           <div className="p-6">
             <div className="space-y-6">
-              {candidate.verificationLogs.map((log: any, index: number) => (
+              {candidate.verificationLogs.map((log: VerificationLog, index: number) => (
                 <div key={log.id} className="relative pl-8">
                   {index !== candidate.verificationLogs.length - 1 && (
                     <div className="absolute left-[11px] top-6 bottom-[-24px] w-px bg-gray-200"></div>
@@ -173,7 +200,7 @@ export default function CandidateDetails() {
                     </div>
                     <p className="text-xs text-gray-400 mt-1">{format(new Date(log.verifiedAt), 'dd MMM yyyy, HH:mm:ss')}</p>
                     <div className="mt-2 text-sm bg-gray-50 p-3 rounded-lg text-gray-600 font-mono text-xs overflow-x-auto">
-                      {JSON.parse(log.responsePayload).message || JSON.stringify(JSON.parse(log.responsePayload))}
+                      {log.responsePayload?.message || JSON.stringify(log.responsePayload)}
                     </div>
                   </div>
                 </div>
@@ -182,6 +209,17 @@ export default function CandidateDetails() {
           </div>
         </div>
       )}
+
+      <CandidateFormModal 
+        isOpen={isEditModalOpen} 
+        onClose={() => setIsEditModalOpen(false)} 
+        onSuccess={() => {
+          setIsEditModalOpen(false);
+          void fetchCandidate();
+          addToast('Candidate updated successfully', 'success');
+        }}
+        candidate={candidate}
+      />
     </div>
   );
 }

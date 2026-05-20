@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.generateReport = exports.startVerification = exports.getCandidate = exports.getCandidates = exports.createCandidate = void 0;
+exports.updateCandidate = exports.deleteCandidate = exports.generateReport = exports.startVerification = exports.getCandidate = exports.getCandidates = exports.createCandidate = void 0;
 const prisma_1 = __importDefault(require("../prisma"));
 const axios_1 = __importDefault(require("axios"));
 const pdfService_1 = require("../services/pdfService");
@@ -67,35 +67,39 @@ const startVerification = async (req, res) => {
         const host = req.get('host');
         const protocol = req.protocol;
         const baseUrl = `${protocol}://${host}`;
-        // Aadhaar Verification
-        const aadhaarResponse = await axios_1.default.post(`${baseUrl}/mock-api/aadhaar/verify`, {
+        const aadhaarUrl = process.env.AADHAAR_API_URL || `${baseUrl}/mock-api/aadhaar/verify`;
+        const panUrl = process.env.PAN_API_URL || `${baseUrl}/mock-api/pan/verify`;
+        const aadhaarResponse = await axios_1.default.post(aadhaarUrl, {
             aadhaarNumber: candidate.aadhaarNumber,
         }).catch(err => err.response);
         await prisma_1.default.verificationLog.create({
             data: {
                 candidateId: candidate.id,
                 verificationType: 'AADHAAR',
-                requestPayload: JSON.stringify({ aadhaarNumber: candidate.aadhaarNumber }),
-                responsePayload: JSON.stringify(aadhaarResponse?.data || {}),
+                requestPayload: { aadhaarNumber: candidate.aadhaarNumber },
+                responsePayload: aadhaarResponse?.data || {},
                 verificationStatus: aadhaarResponse?.data?.status || 'failed',
             }
         });
-        // PAN Verification
-        const panResponse = await axios_1.default.post(`${baseUrl}/mock-api/pan/verify`, {
+        const panResponse = await axios_1.default.post(panUrl, {
             panNumber: candidate.panNumber,
         }).catch(err => err.response);
         await prisma_1.default.verificationLog.create({
             data: {
                 candidateId: candidate.id,
                 verificationType: 'PAN',
-                requestPayload: JSON.stringify({ panNumber: candidate.panNumber }),
-                responsePayload: JSON.stringify(panResponse?.data || {}),
+                requestPayload: { panNumber: candidate.panNumber },
+                responsePayload: panResponse?.data || {},
                 verificationStatus: panResponse?.data?.status || 'failed',
             }
         });
-        const overallStatus = (aadhaarResponse?.data?.status === 'verified' && panResponse?.data?.status === 'verified')
-            ? 'VERIFIED'
-            : 'FAILED';
+        let overallStatus = 'FAILED';
+        if (aadhaarResponse?.data?.status === 'verified' && panResponse?.data?.status === 'verified') {
+            overallStatus = 'VERIFIED';
+        }
+        else if (aadhaarResponse?.data?.status === 'verified' || panResponse?.data?.status === 'verified') {
+            overallStatus = 'PARTIAL';
+        }
         const updatedCandidate = await prisma_1.default.candidate.update({
             where: { id: candidate.id },
             data: { status: overallStatus },
@@ -103,7 +107,6 @@ const startVerification = async (req, res) => {
         res.json(updatedCandidate);
     }
     catch (error) {
-        console.error(error);
         res.status(500).json({ error: 'Verification failed' });
     }
 };
@@ -117,14 +120,74 @@ const generateReport = async (req, res) => {
         if (!candidate || candidate.createdById !== req.user.userId) {
             return res.status(404).json({ error: 'Candidate not found' });
         }
-        const pdfBuffer = await (0, pdfService_1.generateVerificationReportPDF)(candidate);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let pdfBuffer;
+        if (candidate.reportBase64) {
+            pdfBuffer = Buffer.from(candidate.reportBase64, 'base64');
+        }
+        else {
+            pdfBuffer = await (0, pdfService_1.generateVerificationReportPDF)(candidate);
+            await prisma_1.default.candidate.update({
+                where: { id: candidate.id },
+                data: { reportBase64: pdfBuffer.toString('base64') },
+            });
+        }
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename=report-${candidate.id}.pdf`);
         res.send(pdfBuffer);
     }
     catch (error) {
-        console.error('PDF Generation Error:', error);
         res.status(500).json({ error: 'Failed to generate report' });
     }
 };
 exports.generateReport = generateReport;
+const deleteCandidate = async (req, res) => {
+    try {
+        const candidate = await prisma_1.default.candidate.findUnique({ where: { id: req.params.id } });
+        if (!candidate || candidate.createdById !== req.user.userId) {
+            return res.status(404).json({ error: 'Candidate not found' });
+        }
+        await prisma_1.default.verificationLog.deleteMany({ where: { candidateId: candidate.id } });
+        await prisma_1.default.candidate.delete({ where: { id: candidate.id } });
+        res.json({ message: 'Candidate deleted successfully' });
+    }
+    catch (error) {
+        res.status(500).json({ error: 'Failed to delete candidate' });
+    }
+};
+exports.deleteCandidate = deleteCandidate;
+const updateCandidate = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { fullName, email, phone, aadhaarNumber, panNumber, dob, address } = req.body;
+        const candidate = await prisma_1.default.candidate.findUnique({ where: { id: id } });
+        if (!candidate || candidate.createdById !== req.user.userId) {
+            return res.status(404).json({ error: 'Candidate not found' });
+        }
+        const needsReVerification = candidate.aadhaarNumber !== aadhaarNumber || candidate.panNumber !== panNumber;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const updatedData = {
+            fullName,
+            email,
+            phone,
+            aadhaarNumber,
+            panNumber,
+            dob: new Date(dob),
+            address,
+        };
+        if (needsReVerification) {
+            updatedData.status = 'PENDING';
+            updatedData.reportBase64 = null;
+            await prisma_1.default.verificationLog.deleteMany({ where: { candidateId: id } });
+        }
+        const updatedCandidate = await prisma_1.default.candidate.update({
+            where: { id: id },
+            data: updatedData,
+        });
+        res.json(updatedCandidate);
+    }
+    catch (error) {
+        res.status(500).json({ error: 'Failed to update candidate' });
+    }
+};
+exports.updateCandidate = updateCandidate;

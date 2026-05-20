@@ -10,4 +10,6 @@ router.get('/', candidates_1.getCandidates);
 router.get('/:id', candidates_1.getCandidate);
 router.post('/:id/verify', candidates_1.startVerification);
 router.get('/:id/report', candidates_1.generateReport);
+router.put('/:id', candidates_1.updateCandidate);
+router.delete('/:id', candidates_1.deleteCandidate);
 exports.default = router;

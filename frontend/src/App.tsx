@@ -4,7 +4,9 @@ import DashboardLayout from './layouts/DashboardLayout';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
+import Candidates from './pages/Candidates';
 import CandidateDetails from './pages/CandidateDetails';
+import ToastContainer from './components/ToastContainer';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -26,9 +28,11 @@ function App() {
           }
         >
           <Route index element={<Dashboard />} />
-          <Route path="candidate/:id" element={<CandidateDetails />} />
+          <Route path="candidates" element={<Candidates />} />
+          <Route path="candidates/:id" element={<CandidateDetails />} />
         </Route>
       </Routes>
+      <ToastContainer />
     </BrowserRouter>
   );
 }

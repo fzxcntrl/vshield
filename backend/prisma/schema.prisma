@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -26,6 +26,7 @@ model Candidate {
   dob             DateTime
   address         String
   status          String             @default("PENDING")
+  reportBase64    String?            @db.Text
   createdAt       DateTime           @default(now())
   createdById     String
   createdBy       User               @relation(fields: [createdById], references: [id])
@@ -36,8 +37,8 @@ model VerificationLog {
   id                 String    @id @default(uuid())
   candidateId        String
   verificationType   String
-  requestPayload     String
-  responsePayload    String
+  requestPayload     Json
+  responsePayload    Json
   verificationStatus String
   verifiedAt         DateTime  @default(now())
   candidate          Candidate @relation(fields: [candidateId], references: [id])

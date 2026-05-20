@@ -1,102 +1,175 @@
-# Background Verification Platform
+# VShield — Background Verification Platform
 
-A secure and scalable platform for organizations and recruiters to perform identity checks on candidates. 
-Built as a full-stack solution featuring a clean enterprise React dashboard and a robust Node.js backend.
+VShield is a full-stack web application for managing and verifying candidate backgrounds. It provides an intuitive dashboard, real-time Aadhaar & PAN verification against mock APIs, professional PDF report generation, and secure role-based authentication.
+
+---
 
 ## Features
 
-- **Authentication Module**: Secure JWT-based registration and login system with bcrypt password hashing.
-- **Candidate Management**: Complete CRUD operations for candidates with search and filtering.
-- **Identity Verification**: Automated verification for Aadhaar and PAN numbers using mock REST APIs.
-- **Professional PDF Reports**: Generate and download comprehensive background verification reports using Puppeteer.
-- **Responsive Dashboard**: Built with React, Tailwind CSS, and Lucide icons for a premium, enterprise-grade user experience.
+- **Secure Authentication** — Register / Login with JWT, password strength indicator, Remember Me (localStorage vs sessionStorage), logout confirmation popover.
+- **Dashboard** — At-a-glance stat cards (Total, Verified, Pending, Failed) and a recent candidates table.
+- **Candidate Management** — Add candidates with validated Aadhaar (12-digit) and PAN (ABCDE1234F) fields, search & filter by name/email/status, paginated list (10 per page), and delete functionality.
+- **Identity Verification** — One-click Aadhaar + PAN mock verification with a full-screen loading overlay and automatic status resolution (VERIFIED / PARTIAL / FAILED).
+- **Candidate Detail View** — Personal details card with masked Aadhaar (XXXX-XXXX-1234), PAN, DOB, address, overall status badge, and a vertical verification timeline with timestamps.
+- **PDF Reports** — Client-side PDF generation (jsPDF) with navy header, candidate details, verification results, and a diagonal "CONFIDENTIAL" watermark. Filename: `BGV_Report_<Name>_<Date>.pdf`.
+- **Responsive UI** — Mobile-first design: table becomes card list on small screens, hamburger menu in navbar.
+- **Toast Notifications** — Global top-right toasts (green/yellow/red) auto-dismiss after 3 seconds.
+- **Skeleton Loaders** — Shimmer loading states instead of blank screens.
+
+---
 
 ## Tech Stack
 
-### Frontend
-- **Framework**: React 19 + Vite (TypeScript)
-- **Styling**: Tailwind CSS v4
-- **State Management**: Zustand
-- **Routing**: React Router DOM
-- **HTTP Client**: Axios
-- **Icons**: Lucide React
+| Layer      | Technology                                  |
+|------------|---------------------------------------------|
+| Frontend   | React 19, TypeScript, Vite, Tailwind CSS    |
+| State      | Zustand                                     |
+| Forms      | React Hook Form + Zod                       |
+| Icons      | Lucide React                                |
+| PDF        | jsPDF                                       |
+| Backend    | Node.js, Express, TypeScript                |
+| Database   | PostgreSQL / Neon (via Prisma ORM)           |
+| Auth       | JSON Web Tokens (JWT), bcrypt               |
+| HTTP       | Axios                                       |
 
-### Backend
-- **Framework**: Node.js + Express.js (TypeScript)
-- **Database**: SQLite (via Prisma ORM, easily interchangeable to PostgreSQL)
-- **Authentication**: JSON Web Tokens (JWT) & bcrypt
-- **PDF Generation**: Puppeteer
-- **Validation**: Zod
+---
 
 ## Setup Instructions
 
 ### Prerequisites
-- Node.js (v18 or higher)
-- npm or yarn
 
-### 1. Clone the repository (or navigate to directory)
+- Node.js ≥ 18
+- npm ≥ 9
+- PostgreSQL instance (local or [Neon](https://neon.tech))
+
+### 1. Clone the Repository
+
 ```bash
+git clone <repository-url>
 cd vshield
 ```
 
 ### 2. Backend Setup
+
 ```bash
 cd backend
 npm install
-# Initialize Prisma and SQLite database
-npx prisma db push
-npx prisma generate
 ```
 
+Create a `.env` file in the `backend/` directory:
+
+```env
+DATABASE_URL="postgresql://<user>:<password>@<host>/<database>?sslmode=require"
+JWT_SECRET="your-secret-key"
+PORT=5001
+```
+
+Generate the Prisma client and start the dev server:
+
+```bash
+npx prisma generate
+npm run dev
+```
+
+The backend will start on **http://localhost:5001**.
+
 ### 3. Frontend Setup
+
 ```bash
 cd ../frontend
 npm install
+npm run dev
 ```
+
+The frontend will start on **http://localhost:5173** and proxy API calls to `localhost:5001`.
+
+---
 
 ## Environment Variables
 
-Create a `.env` file in the `backend` directory (one is already provided with defaults for local dev):
+| Variable          | Location  | Description                          |
+|-------------------|-----------|--------------------------------------|
+| `DATABASE_URL`    | backend   | PostgreSQL connection string          |
+| `JWT_SECRET`      | backend   | Secret key for signing JWT tokens    |
+| `PORT`            | backend   | Server port (default: 5001)          |
+| `AADHAAR_API_URL` | backend   | URL for Aadhaar verification API      |
+| `PAN_API_URL`     | backend   | URL for PAN verification API          |
+| `AWS_BUCKET_NAME` | backend   | S3 Bucket Name for reports            |
 
-```env
-DATABASE_URL="file:./dev.db"
-JWT_SECRET="supersecretkey123"
-PORT=5000
-```
-> **Note on Database**: The project currently defaults to SQLite for immediate local testing without needing a PostgreSQL server setup. To use PostgreSQL (e.g. Neon, Supabase, RDS), change the provider in `backend/prisma/schema.prisma` from `sqlite` to `postgresql`, set `DATABASE_URL` to your PostgreSQL connection string, and run `npx prisma db push`.
+AWS S3 integration ready — set AWS_BUCKET_NAME, AWS_ACCESS_KEY_ID, and AWS_SECRET_ACCESS_KEY in .env to enable cloud storage for reports.
+
+---
 
 ## API Endpoints
 
 ### Authentication
-- `POST /api/auth/register` - Register a new user
-- `POST /api/auth/login` - Login user and get JWT
+
+| Method | Endpoint             | Description          | Auth |
+|--------|----------------------|----------------------|------|
+| POST   | `/api/auth/register` | Register a new user  | No   |
+| POST   | `/api/auth/login`    | Login, returns JWT   | No   |
 
 ### Candidates
-- `GET /api/candidates` - Get all candidates for the authenticated user
-- `POST /api/candidates` - Create a new candidate
-- `GET /api/candidates/:id` - Get specific candidate details
-- `POST /api/candidates/:id/verify` - Trigger Aadhaar and PAN verification
-- `GET /api/candidates/:id/report` - Download PDF verification report
+
+| Method | Endpoint                        | Description                   | Auth |
+|--------|---------------------------------|-------------------------------|------|
+| GET    | `/api/candidates`               | List all candidates           | Yes  |
+| POST   | `/api/candidates`               | Create a new candidate        | Yes  |
+| GET    | `/api/candidates/:id`           | Get candidate by ID           | Yes  |
+| POST   | `/api/candidates/:id/verify`    | Run Aadhaar + PAN verification| Yes  |
+| GET    | `/api/candidates/:id/report`    | Download PDF report           | Yes  |
+| DELETE | `/api/candidates/:id`           | Delete a candidate            | Yes  |
 
 ### Mock Verification APIs
-- `POST /mock-api/aadhaar/verify`
-- `POST /mock-api/pan/verify`
 
-## Database Setup
+| Method | Endpoint                        | Description                   |
+|--------|---------------------------------|-------------------------------|
+| POST   | `/mock-api/aadhaar/verify`      | Mock Aadhaar verification     |
+| POST   | `/mock-api/pan/verify`          | Mock PAN verification         |
 
-The schema uses the Prisma ORM. Currently configured with:
-- **User** table
-- **Candidate** table (1:N relation with User)
-- **VerificationLog** table (1:N relation with Candidate)
+---
 
-To inspect the database locally:
-```bash
-cd backend
-npx prisma studio
+## Project Structure
+
+```
+vshield/
+├── backend/
+│   ├── prisma/
+│   │   └── schema.prisma         # PostgreSQL schema (User, Candidate, VerificationLog)
+│   └── src/
+│       ├── controllers/          # Auth & Candidate logic
+│       ├── middleware/            # JWT auth middleware
+│       ├── routes/                # Express routes
+│       ├── services/              # PDF generation service
+│       └── index.ts               # Express app entry point
+├── frontend/
+│   └── src/
+│       ├── components/            # ToastContainer
+│       ├── layouts/               # DashboardLayout (navbar, hamburger)
+│       ├── pages/                 # Login, Register, Dashboard, Candidates, CandidateDetails
+│       ├── services/              # Axios API config
+│       ├── store/                 # Zustand stores (auth, toast)
+│       └── utils/                 # PDF generator utility
+└── README.md
 ```
 
-## Deployment
+---
 
-- **Frontend**: Ready to be deployed on Vercel. Ensure `API_URL` is set to your production backend.
-- **Backend**: Ready for Render, Railway, or AWS. Set the necessary environment variables and switch to a cloud PostgreSQL instance.
-- **Database**: Recommended providers include Neon, Supabase, or AWS RDS.
+## Screenshots
+
+> Screenshots can be captured by running the app locally and navigating through the pages.
+
+| Page               | Description                                              |
+|--------------------|----------------------------------------------------------|
+| Login              | Centered card with email/password validation, Remember Me|
+| Register           | Full Name, Email, Password with strength bar, Confirm    |
+| Dashboard          | Stat cards + recent candidates table                     |
+| Candidates List    | Search, status filter, pagination, action buttons        |
+| Candidate Details  | Personal info, masked Aadhaar, verification timeline     |
+| PDF Report         | Navy header, candidate details, CONFIDENTIAL watermark   |
+
+---
+
+## License
+
+This project is part of a background verification assignment.

@@ -4,25 +4,33 @@ const router = Router();
 
 router.post('/aadhaar/verify', (req: Request, res: Response) => {
   const { aadhaarNumber } = req.body;
-  if (!/^\d{12}$/.test(aadhaarNumber)) {
-    return res.status(400).json({ status: 'failed', message: 'Invalid Aadhaar format' });
+  if (aadhaarNumber && /^\d{12}$/.test(aadhaarNumber)) {
+    return res.json({
+      status: "verified",
+      nameMatch: true,
+      dobMatch: true,
+      message: "Aadhaar verified successfully"
+    });
   }
-  // Mock logic: end with 0 means failed
-  if (aadhaarNumber.endsWith('0')) {
-    return res.json({ status: 'failed', nameMatch: false, dobMatch: false, message: 'Aadhaar verification failed' });
-  }
-  res.json({ status: 'verified', nameMatch: true, dobMatch: true, message: 'Aadhaar verified successfully' });
+  return res.json({
+    status: "failed",
+    message: "Aadhaar verification failed"
+  });
 });
 
 router.post('/pan/verify', (req: Request, res: Response) => {
   const { panNumber } = req.body;
-  if (!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(panNumber)) {
-    return res.status(400).json({ status: 'failed', message: 'Invalid PAN format' });
+  if (panNumber && /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(panNumber)) {
+    return res.json({
+      status: "verified",
+      panStatus: "active",
+      message: "PAN verified successfully"
+    });
   }
-  if (panNumber.endsWith('Z')) {
-    return res.json({ status: 'failed', panStatus: 'inactive', message: 'PAN verification failed' });
-  }
-  res.json({ status: 'verified', panStatus: 'active', message: 'PAN verified successfully' });
+  return res.json({
+    status: "failed",
+    message: "PAN verification failed"
+  });
 });
 
 export default router;
