@@ -3,12 +3,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import prisma from '../prisma';
 import { z } from 'zod';
-
-const registerSchema = z.object({
-  name: z.string().min(1),
-  email: z.string().email(),
-  password: z.string().min(6),
-});
+import { loginSchema, registerSchema } from '../validations/auth';
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -26,13 +21,17 @@ export const register = async (req: Request, res: Response) => {
 
     res.status(201).json({ message: 'User registered successfully', userId: user.id });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.issues[0]?.message || 'Invalid request data' });
+    }
+
     res.status(400).json({ error: 'Invalid request data or server error' });
   }
 };
 
 export const login = async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body;
+    const { email, password } = loginSchema.parse(req.body);
 
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
@@ -50,6 +49,10 @@ export const login = async (req: Request, res: Response) => {
 
     res.json({ token });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.issues[0]?.message || 'Invalid request data' });
+    }
+
     res.status(500).json({ error: 'Server error' });
   }
 };

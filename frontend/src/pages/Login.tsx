@@ -6,9 +6,10 @@ import { ShieldCheck, Loader2, Eye, EyeOff, AlertCircle, CheckCircle2 } from 'lu
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { emailSchema } from '../utils/validation';
 
 const loginSchema = z.object({
-  email: z.string().min(1, 'Email is required').email('Invalid email address format'),
+  email: emailSchema,
   password: z.string().min(8, 'Password must be at least 8 characters'),
   rememberMe: z.boolean().optional(),
 });
@@ -74,8 +75,9 @@ const Login = () => {
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <label htmlFor="login-email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
               <input
+                id="login-email"
                 type="email"
                 {...register('email')}
                 className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 transition-all ${errors.email ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary focus:border-primary'}`}
@@ -83,9 +85,10 @@ const Login = () => {
               {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <label htmlFor="login-password" className="block text-sm font-medium text-gray-700 mb-1">Password</label>
               <div className="relative">
                 <input
+                  id="login-password"
                   type={showPassword ? 'text' : 'password'}
                   {...register('password')}
                   className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 transition-all pr-12 ${errors.password ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary focus:border-primary'}`}

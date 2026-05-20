@@ -6,10 +6,11 @@ import { useForm, useWatch } from 'react-hook-form';
 import { useAuthStore } from '../store/authStore';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { emailSchema, fullNameSchema } from '../utils/validation';
 
 const registerSchema = z.object({
-  name: z.string().min(1, 'Full Name is required'),
-  email: z.string().min(1, 'Email is required').email('Invalid email address format'),
+  name: fullNameSchema,
+  email: emailSchema,
   password: z.string()
     .min(8, 'Password must be at least 8 characters')
     .regex(/[0-9]/, 'Password must contain at least one number'),
@@ -98,8 +99,9 @@ const Register = () => {
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+              <label htmlFor="register-name" className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
               <input
+                id="register-name"
                 type="text"
                 {...register('name')}
                 className={getInputClass(!!errors.name)}
@@ -108,8 +110,9 @@ const Register = () => {
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <label htmlFor="register-email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
               <input
+                id="register-email"
                 type="email"
                 {...register('email')}
                 className={getInputClass(!!errors.email)}
@@ -118,9 +121,10 @@ const Register = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <label htmlFor="register-password" className="block text-sm font-medium text-gray-700 mb-1">Password</label>
               <div className="relative">
                 <input
+                  id="register-password"
                   type={showPassword ? 'text' : 'password'}
                   {...register('password')}
                   className={`${getInputClass(!!errors.password)} pr-12`}
@@ -145,9 +149,10 @@ const Register = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+              <label htmlFor="register-confirm-password" className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
               <div className="relative">
                 <input
+                  id="register-confirm-password"
                   type={showConfirmPassword ? 'text' : 'password'}
                   {...register('confirmPassword')}
                   className={`${getInputClass(!!errors.confirmPassword)} pr-12`}
