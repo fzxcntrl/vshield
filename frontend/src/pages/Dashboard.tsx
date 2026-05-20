@@ -100,7 +100,7 @@ export default function Dashboard() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-6 border-b border-gray-100 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">Recent Candidates</h3>
-          <Link to="/candidates" className="text-sm font-medium text-primary hover:text-blue-800 flex items-center">
+          <Link to="/dashboard/candidates" className="text-sm font-medium text-primary hover:text-blue-800 flex items-center">
             View all <ChevronRight className="w-4 h-4 ml-1" />
           </Link>
         </div>
@@ -124,7 +124,7 @@ export default function Dashboard() {
                 recentCandidates.map((candidate) => (
                   <tr key={candidate.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-6 py-4">
-                      <Link to={`/candidates/${candidate.id}`} className="font-medium text-gray-900 hover:text-primary">
+                      <Link to={`/dashboard/candidates/${candidate.id}`} className="font-medium text-gray-900 hover:text-primary">
                         {candidate.fullName}
                       </Link>
                     </td>

@@ -31,4 +31,16 @@ describe('Login Component', () => {
       expect(screen.getByText('Password must be at least 8 characters')).toBeInTheDocument();
     });
   });
+
+  it('shows a helpful message for common email typos', async () => {
+    render(<BrowserRouter><Login /></BrowserRouter>);
+
+    fireEvent.change(screen.getByLabelText(/Email/i), { target: { value: 'farzain0.1n@gmail.co' } });
+    fireEvent.change(screen.getByLabelText(/Password/i), { target: { value: 'password12' } });
+    fireEvent.click(screen.getByRole('button', { name: /Sign in/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Email domain looks incorrect. Did you mean gmail.com?')).toBeInTheDocument();
+    });
+  });
 });

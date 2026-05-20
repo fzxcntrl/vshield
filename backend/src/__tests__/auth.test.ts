@@ -24,8 +24,8 @@ describe('Auth API', () => {
         .post('/api/auth/login')
         .send({ email: 'test@example.com' }); // missing password
 
-      expect(response.status).toBe(401);
-      expect(response.body.error).toBe('Invalid credentials');
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe('Password is required');
     });
 
     it('should return 400 for invalid credentials (user not found)', async () => {

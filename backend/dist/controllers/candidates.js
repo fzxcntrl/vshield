@@ -7,9 +7,11 @@ exports.updateCandidate = exports.deleteCandidate = exports.generateReport = exp
 const prisma_1 = __importDefault(require("../prisma"));
 const axios_1 = __importDefault(require("axios"));
 const pdfService_1 = require("../services/pdfService");
+const candidate_1 = require("../validations/candidate");
+const zod_1 = require("zod");
 const createCandidate = async (req, res) => {
     try {
-        const { fullName, email, phone, aadhaarNumber, panNumber, dob, address } = req.body;
+        const { fullName, email, phone, aadhaarNumber, panNumber, dob, address } = candidate_1.candidateSchema.parse(req.body);
         const candidate = await prisma_1.default.candidate.create({
             data: {
                 fullName,
@@ -25,6 +27,9 @@ const createCandidate = async (req, res) => {
         res.status(201).json(candidate);
     }
     catch (error) {
+        if (error instanceof zod_1.z.ZodError) {
+            return res.status(400).json({ error: error.issues[0]?.message || 'Invalid candidate details' });
+        }
         res.status(400).json({ error: 'Failed to create candidate' });
     }
 };
@@ -69,37 +74,81 @@ const startVerification = async (req, res) => {
         const baseUrl = `${protocol}://${host}`;
         const aadhaarUrl = process.env.AADHAAR_API_URL || `${baseUrl}/mock-api/aadhaar/verify`;
         const panUrl = process.env.PAN_API_URL || `${baseUrl}/mock-api/pan/verify`;
-        const aadhaarResponse = await axios_1.default.post(aadhaarUrl, {
-            aadhaarNumber: candidate.aadhaarNumber,
-        }).catch(err => err.response);
+        console.log('[VERIFICATION] Starting verification for candidate:', candidate.id);
+        console.log('[VERIFICATION] Aadhaar URL:', aadhaarUrl);
+        console.log('[VERIFICATION] PAN URL:', panUrl);
+        // Aadhaar verification
+        let aadhaarResponse;
+        let aadhaarData;
+        let aadhaarStatus = 'failed';
+        try {
+            aadhaarResponse = await axios_1.default.post(aadhaarUrl, {
+                aadhaarNumber: candidate.aadhaarNumber,
+            });
+            aadhaarData = aadhaarResponse.data;
+            aadhaarStatus = aadhaarData?.status || 'failed';
+            console.log('[VERIFICATION] Aadhaar response:', aadhaarData);
+        }
+        catch (err) {
+            console.error('[VERIFICATION] Aadhaar API error:', err.message);
+            aadhaarData = {
+                status: 'failed',
+                message: err.response?.data?.message || `API Error: ${err.message}`
+            };
+            if (err.response?.data) {
+                aadhaarData = err.response.data;
+                aadhaarStatus = err.response.data.status || 'failed';
+            }
+        }
         await prisma_1.default.verificationLog.create({
             data: {
                 candidateId: candidate.id,
                 verificationType: 'AADHAAR',
                 requestPayload: { aadhaarNumber: candidate.aadhaarNumber },
-                responsePayload: aadhaarResponse?.data || {},
-                verificationStatus: aadhaarResponse?.data?.status || 'failed',
+                responsePayload: aadhaarData || {},
+                verificationStatus: aadhaarStatus,
             }
         });
-        const panResponse = await axios_1.default.post(panUrl, {
-            panNumber: candidate.panNumber,
-        }).catch(err => err.response);
+        // PAN verification
+        let panResponse;
+        let panData;
+        let panStatus = 'failed';
+        try {
+            panResponse = await axios_1.default.post(panUrl, {
+                panNumber: candidate.panNumber,
+            });
+            panData = panResponse.data;
+            panStatus = panData?.status || 'failed';
+            console.log('[VERIFICATION] PAN response:', panData);
+        }
+        catch (err) {
+            console.error('[VERIFICATION] PAN API error:', err.message);
+            panData = {
+                status: 'failed',
+                message: err.response?.data?.message || `API Error: ${err.message}`
+            };
+            if (err.response?.data) {
+                panData = err.response.data;
+                panStatus = err.response.data.status || 'failed';
+            }
+        }
         await prisma_1.default.verificationLog.create({
             data: {
                 candidateId: candidate.id,
                 verificationType: 'PAN',
                 requestPayload: { panNumber: candidate.panNumber },
-                responsePayload: panResponse?.data || {},
-                verificationStatus: panResponse?.data?.status || 'failed',
+                responsePayload: panData || {},
+                verificationStatus: panStatus,
             }
         });
         let overallStatus = 'FAILED';
-        if (aadhaarResponse?.data?.status === 'verified' && panResponse?.data?.status === 'verified') {
+        if (aadhaarStatus === 'verified' && panStatus === 'verified') {
             overallStatus = 'VERIFIED';
         }
-        else if (aadhaarResponse?.data?.status === 'verified' || panResponse?.data?.status === 'verified') {
+        else if (aadhaarStatus === 'verified' || panStatus === 'verified') {
             overallStatus = 'PARTIAL';
         }
+        console.log('[VERIFICATION] Overall status:', overallStatus);
         const updatedCandidate = await prisma_1.default.candidate.update({
             where: { id: candidate.id },
             data: { status: overallStatus },
@@ -107,6 +156,7 @@ const startVerification = async (req, res) => {
         res.json(updatedCandidate);
     }
     catch (error) {
+        console.error('[VERIFICATION] Fatal error:', error);
         res.status(500).json({ error: 'Verification failed' });
     }
 };
@@ -159,7 +209,7 @@ exports.deleteCandidate = deleteCandidate;
 const updateCandidate = async (req, res) => {
     try {
         const { id } = req.params;
-        const { fullName, email, phone, aadhaarNumber, panNumber, dob, address } = req.body;
+        const { fullName, email, phone, aadhaarNumber, panNumber, dob, address } = candidate_1.candidateSchema.parse(req.body);
         const candidate = await prisma_1.default.candidate.findUnique({ where: { id: id } });
         if (!candidate || candidate.createdById !== req.user.userId) {
             return res.status(404).json({ error: 'Candidate not found' });
@@ -187,6 +237,9 @@ const updateCandidate = async (req, res) => {
         res.json(updatedCandidate);
     }
     catch (error) {
+        if (error instanceof zod_1.z.ZodError) {
+            return res.status(400).json({ error: error.issues[0]?.message || 'Invalid candidate details' });
+        }
         res.status(500).json({ error: 'Failed to update candidate' });
     }
 };

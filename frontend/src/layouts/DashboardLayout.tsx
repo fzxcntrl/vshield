@@ -28,7 +28,7 @@ const DashboardLayout = () => {
             </div>
             <nav className="hidden sm:flex gap-6">
               <NavLink 
-                to="/" 
+                to="/dashboard" 
                 className={({ isActive }) => 
                   `text-sm font-medium transition-colors ${isActive ? 'text-primary border-b-2 border-primary py-5' : 'text-gray-500 hover:text-gray-900 py-5'}`
                 }
@@ -37,7 +37,7 @@ const DashboardLayout = () => {
                 Dashboard
               </NavLink>
               <NavLink 
-                to="/candidates" 
+                to="/dashboard/candidates" 
                 className={({ isActive }) => 
                   `text-sm font-medium transition-colors ${isActive ? 'text-primary border-b-2 border-primary py-5' : 'text-gray-500 hover:text-gray-900 py-5'}`
                 }
@@ -51,6 +51,7 @@ const DashboardLayout = () => {
               <UserCircle size={20} />
               <span className="text-sm font-medium">{userName}</span>
             </div>
+            
             <div className="relative">
               <button
                 onClick={() => setShowLogoutConfirm(true)}
@@ -95,7 +96,7 @@ const DashboardLayout = () => {
         <div className="sm:hidden bg-white border-b shadow-sm absolute top-16 left-0 right-0 z-40 animate-fade-in">
           <div className="px-4 pt-2 pb-4 space-y-1 flex flex-col">
             <NavLink 
-              to="/" 
+              to="/dashboard" 
               onClick={() => setMobileMenuOpen(false)}
               className={({ isActive }) => 
                 `block px-3 py-2 rounded-md text-base font-medium ${isActive ? 'bg-primary/5 text-primary' : 'text-gray-600 hover:bg-gray-50'}`
@@ -105,7 +106,7 @@ const DashboardLayout = () => {
               Dashboard
             </NavLink>
             <NavLink 
-              to="/candidates" 
+              to="/dashboard/candidates" 
               onClick={() => setMobileMenuOpen(false)}
               className={({ isActive }) => 
                 `block px-3 py-2 rounded-md text-base font-medium ${isActive ? 'bg-primary/5 text-primary' : 'text-gray-600 hover:bg-gray-50'}`

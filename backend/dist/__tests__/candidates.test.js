@@ -45,7 +45,7 @@ describe('Candidates API', () => {
                 .send({
                 fullName: 'John Doe',
                 email: 'john@test.com',
-                phone: '1234567890',
+                phone: '9876543210',
                 aadhaarNumber: '123456789012',
                 panNumber: 'ABCDE1234F',
                 dob: '1990-01-01',
@@ -74,8 +74,8 @@ describe('Candidates API', () => {
                 .send({
                 fullName: 'John Doe Edit',
                 email: 'john@test.com',
-                phone: '1234567890',
-                aadhaarNumber: 'newAadhaar',
+                phone: '9876543210',
+                aadhaarNumber: '234567890123',
                 panNumber: 'ABCDE1234F',
                 dob: '1990-01-01',
                 address: '123 Test St'

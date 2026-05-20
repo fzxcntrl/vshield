@@ -11,6 +11,9 @@ const mockApi_1 = __importDefault(require("./routes/mockApi"));
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)());
 app.use(express_1.default.json());
+app.get('/health', (_req, res) => {
+    res.status(200).json({ status: 'ok' });
+});
 app.use('/api/auth', auth_1.default);
 app.use('/api/candidates', candidates_1.default);
 app.use('/mock-api', mockApi_1.default); // Using mock routes directly here
