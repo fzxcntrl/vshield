@@ -1,0 +1,14 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const auth_1 = require("../middleware/auth");
+const candidates_1 = require("../controllers/candidates");
+const router = (0, express_1.Router)();
+router.use(auth_1.authenticate);
+router.post('/', candidates_1.createCandidate);
+router.get('/', candidates_1.getCandidates);
+router.get('/:id', candidates_1.getCandidate);
+router.post('/:id/verify', candidates_1.startVerification);
+router.get('/:id/report', candidates_1.generateReport);
+exports.default = router;
+//# sourceMappingURL=candidates.js.map
