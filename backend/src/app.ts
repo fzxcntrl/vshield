@@ -6,7 +6,18 @@ import mockApiRoutes from './routes/mockApi';
 
 const app = express();
 
-app.use(cors());
+// Configure CORS to allow your Vercel domain
+app.use(cors({
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'https://vshield-in.vercel.app',  // Your Vercel domain
+    'https://*.vercel.app'            // Allow all Vercel preview deployments
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 
 app.get('/health', (_req, res) => {
